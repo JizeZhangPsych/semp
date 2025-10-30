@@ -710,9 +710,9 @@ def plot_grouped_bars(
 
 class StaticVisualizer():
     """Class for visualizing static network features"""
-    def __init__(self):
+    def __init__(self, parcellation_file="fmri_d100_parcellation_with_PCC_reduced_2mm_ss5mm_ds8mm.nii.gz"):
         self.mask_file = "MNI152_T1_8mm_brain.nii.gz"
-        self.parcellation_file = "fmri_d100_parcellation_with_PCC_reduced_2mm_ss5mm_ds8mm.nii.gz"
+        self.parcellation_file = parcellation_file
 
     def plot_power_map(
             self,

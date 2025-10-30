@@ -77,7 +77,7 @@ def cleanup(dataset, userargs):
 
 def mid_crop(dataset, userargs):
     """Crops the raw data to the middle of the recording."""
-    length = userargs.get('length', 250)  # Length of the crop in seconds    
+    length = userargs.get('length', None)  # Length of the crop in seconds    
     edge = userargs.get('edge', None)  # Edge to leave out from both sides in seconds
     
     if length is None and edge is not None:
