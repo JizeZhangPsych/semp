@@ -1,4 +1,4 @@
-# eeg-fmri preproc
+# SEMP: Simultaneous EEG-fMRI Preprocessing Toolbox
 
 Tools for analysing EEG acquired during simultaneous EEG-fMRI experiments.  
 
@@ -32,7 +32,7 @@ For data from the Staresina Lab, the expected directory structure is:
 │   ├── after_hmm/     # HMM results
 │   └── sub-*          # raw data stored here. required for polhemus information
 │
-└── eeg-fmri-preproc/
+└── semp/
     └── scripts/
         └── sts/       # Run scripts with: python *.py
 ```
