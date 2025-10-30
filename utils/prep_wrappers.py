@@ -271,6 +271,33 @@ def debug_init(dataset, userargs):
     dataset["real_raw"] = copy.deepcopy(dataset['raw'])
     return dataset
 
+def snapshot(dataset, userargs):
+    """a function for snapshoting in between the steps.
+
+    Args:
+        dataset (dict): the dict containing raw data and metadata
+        userargs (dict): a dictionary contianing the optional arguments
+            strictly requires a 'name' field in userargs, this name should not be already a key within the dataset.
+            also accept existing keys in dataset to snapshot, e.g. 'ds_name', 'bcg_ep', etc.
+    
+    Returns:
+        dataset: the updated dataset with the extra metadata
+    """
+    
+    snapshot_name = userargs.pop('name')
+    assert snapshot_name not in dataset, f"Snapshot name '{snapshot_name}' already exists in dataset. Please choose a different name."
+    dataset[snapshot_name] = {}
+    
+    dataset[snapshot_name]['raw'] = copy.deepcopy(dataset['raw'])
+    
+    for key in userargs:
+        if key in dataset:
+            dataset[snapshot_name][key] = copy.deepcopy(dataset[key])
+        else:
+            raise KeyError(f"Key '{key}' not found in dataset. Cannot snapshot non-existing key.")
+    
+    return dataset
+    
 def ckpt_report(dataset, userargs):
     """a function for debugging the preprocessing steps.
         strictly requires Python >=3.7, for dict keys ordering

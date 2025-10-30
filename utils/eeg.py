@@ -3,9 +3,11 @@ from natsort import natsorted as sorted
 import numpy as np
 import mne
 from string import Formatter
+import matplotlib
+from matplotlib.font_manager import FontProperties
 from matplotlib import pyplot as plt
 from scipy.signal import find_peaks, welch
-
+from math import floor, ceil, log10
 
 ALL_CHANNEL_LIST = {'grad', 'mag', 'eeg', 'csd', 'stim', 'eog', 'emg', 'ecg', 'ref_meg', 'resp', 'exci', 'ias', 'syst', 'misc', 'seeg', 'dbs', 'bio', 'chpi', 'dipole', 'gof', 'ecog', 'hbo', 'hbr', 'temperature', 'gsr', 'eyetrack'}
 
@@ -199,7 +201,10 @@ class Pathfinder:
         file_pth = glob.glob(os.path.join(self.fdr[data_type], file_name))
         if len(file_pth) == 2:
             file_pth = [pth for pth in file_pth if not 'no-recon' in pth]
-        assert len(file_pth) == 1, f"Found {len(file_pth)} files"
+        assert len(file_pth) <= 1, f"Found {len(file_pth)} files for {subj_str}: {file_pth}"
+        if len(file_pth) == 0:
+            print(f"WARNING: {subj_str} not found. skipping...")
+            return None
         file_pth = file_pth[0]
         return file_pth
     
@@ -266,19 +271,31 @@ def filename2subj(filename, ds_name='staresina'):
         return filename
     elif ds_name == 'irene':
         filename = filename.split('/')[-1]
-        match = re.search(r's(\d\d)_mrEEG(\d)_block(\d).*\.cdt', filename)
-        if match:
-            subj = match.group(1)
-            visit = match.group(2)
-            block = match.group(3)
-            subject_identifier = subj + visit + block
-            return subject_identifier
-        else:
-            match = re.search(r'(\d+)_preproc-raw.fif', filename)
-            subject = match.group(1)
-            return subject
+        match = re.search(r's(\d\d)_mrEEG(?:_visit)?(\d)_block(\d).*\.cdt', filename)
+        try:
+            if match:
+                subj = match.group(1)
+                visit = match.group(2)
+                block = match.group(3)
+                subject_identifier = subj + visit + block
+                return subject_identifier
+            else:
+                match = re.search(r'(\d+)_preproc-raw.fif', filename)
+                subject = match.group(1)
+                return subject
+        except Exception:
+            print(f"Filename {filename} parse error.")
 
-def psd_plot(eeg, name=None, fs=None, picks='eeg', fmin=0, fmax=60, resolution=0.05, figsize=(20,3), save_pth=None, debug=False, dB=False):
+def psd_plot(eeg, name=None, fs=None, picks='eeg', fmin=0, fmax=60, resolution=0.05, figsize=(20,3), save_pth=None, debug=False, dB=False, rc={
+        'font.size': 12,
+        'axes.titlesize': 8,
+        'axes.labelsize': 8,
+        'xtick.labelsize': 8,
+        'ytick.labelsize': 8,
+        'legend.fontsize': 8,
+        'font.family': 'sans-serif',
+        'font.sans-serif': ['Arial', 'Helvetica', 'DejaVu Sans'],
+    }):
     """
     Plot the power spectral density (PSD) of a single EEG dataset.
     
@@ -306,7 +323,7 @@ def psd_plot(eeg, name=None, fs=None, picks='eeg', fmin=0, fmax=60, resolution=0
         Whether to plot in dB scale.
     """
     verbose = 'INFO' if debug else 'ERROR'
-
+    # matplotlib.rcParams.update(rc)
     if 'mne.io' in str(type(eeg)):  # already Raw
         if fs is None:
             fs = eeg.info['sfreq']
@@ -321,43 +338,83 @@ def psd_plot(eeg, name=None, fs=None, picks='eeg', fmin=0, fmax=60, resolution=0
     n_fft = int(np.round(fs / resolution))
     
     old_level = mne.set_log_level(verbose, return_old_level=True)
-    while True:
-        try:
-            psd = raw.compute_psd(fmin=fmin, fmax=fmax, n_fft=n_fft, picks=picks)
-            fig = psd.plot(dB=dB, show=False, picks=picks)
-            break        
-        except ValueError as e:
-            if 'NaN' in str(e):
-                n_fft = n_fft // 2
-                print(f'WARNING: PSD calculation failed, trying again with a smaller resolution {int(fs / n_fft)} Hz/bin')
-            else:
-                raise e
-        except RuntimeError as e:
-            if 'No plottable channel types found' in str(e):
-                fig = psd.plot(dB=dB, show=False)
-                break
-            else:
-                raise e
-
-    fig.set_size_inches(figsize)
-    if name is not None:
-        fig.suptitle(str(name))
     
-    try:
-        if save_pth is not None:
-            fig.savefig(save_pth.replace('.png', '.pdf'))
-            plt.close(fig)
-        else:
-            plt.show()
-    except ValueError as e:
-        print(f"WARNING: {e}. Plotting without saving to file.")
-        print(f"Current psd is : {psd}")
+    with matplotlib.rc_context(rc):
+        while True:
+            try:
+                psd = raw.compute_psd(fmin=fmin, fmax=fmax, n_fft=n_fft, picks=picks)
+                plot_out = psd.plot(dB=dB, show=False, picks=picks)
+                # Handle both (fig, axes) and fig-only returns
+                if isinstance(plot_out, tuple):
+                    fig, axes = plot_out
+                else:
+                    fig, axes = plot_out, plot_out.axes
+                break        
+            except ValueError as e:
+                if 'NaN' in str(e):
+                    n_fft = n_fft // 2
+                    print(f'WARNING: PSD calculation failed, trying again with a smaller resolution {int(fs / n_fft)} Hz/bin')
+                else:
+                    raise e
+            except RuntimeError as e:
+                if 'No plottable channel types found' in str(e):
+                    fig = psd.plot(dB=dB, show=False)
+                    plot_out = psd.plot(dB=dB, show=False)
+                    if isinstance(plot_out, tuple):
+                        fig, axes = plot_out
+                    else:
+                        fig, axes = plot_out, plot_out.axes
+                    break
+                else:
+                    raise e
+        # --- Suppress MNE's per-panel channel-type titles (e.g., "EEG") ---
+        try:
+            for ax in (axes if isinstance(axes, (list, tuple, np.ndarray)) else [axes]):
+                ax.set_title('')
+        except Exception:
+            for ax in fig.axes:
+                ax.set_title('')
+        fig.set_size_inches(figsize)
+        if name is not None:
+            # after plotting and getting `fig` and `axes`
+            axes_list = axes if isinstance(axes, (list, tuple, np.ndarray)) else [axes]
+
+            # get per-axis positions in figure coordinates
+            pos_list = [ax.get_position() for ax in axes_list]
+
+            # combined left and right edge of the plotting area
+            left = min(p.x0 for p in pos_list)
+            right = max(p.x0 + p.width for p in pos_list)
+
+            center_fig = left + 0.5 * (right - left)
+            fig.suptitle(str(name), x=center_fig)   # tweak y to taste
+        
+        try:
+            if save_pth is not None:
+                fig.savefig(save_pth.replace('.png', '.pdf'), bbox_inches='tight', pad_inches=0)
+                plt.close(fig)
+            else:
+                plt.show()
+        except ValueError as e:
+            print(f"WARNING: {e}. Plotting without saving to file.")
+            print(f"Current psd is : {psd}")
 
     mne.set_log_level(old_level)
     return psd
         
 
-def temp_plot(eeg, channel, start=0, length=None, fs=None, events=None, event_id=None, event_onset=0, name='Before BCG removal', save_pth=None, figsize=(20,3), ylim=None):
+def temp_plot(eeg, channel, start=0, length=None, fs=None, events=None, event_id=None, event_onset=0, name=None, save_pth=None, figsize=(20,3), ylim=None, event_name=None, rc={
+        'font.size': 12,
+        'axes.titlesize': 8,
+        'axes.labelsize': 8,
+        'xtick.labelsize': 8,
+        'ytick.labelsize': 8,
+        'legend.fontsize': 8,
+        'font.family': 'sans-serif',
+        'font.sans-serif': ['Arial', 'Helvetica', 'DejaVu Sans'],
+    }, candidate_tick_counts=[7,9,11], colors = ['r', 'g', 'm', 'c', 'y', 'k', '#7f7f7f']):
+    name = name if name is not None else f'{channel}'
+    event_name = event_name if event_name is not None else 'event'
     if 'mne.io' in str(type(eeg)):
         if fs is None:
             fs = eeg.info['sfreq']
@@ -373,34 +430,266 @@ def temp_plot(eeg, channel, start=0, length=None, fs=None, events=None, event_id
         first_samp = 0
     if length is None:
         length = data.shape[1]
-    plt.figure(figsize=figsize)
-    start = int(start)
-    length = int(length)
     
-    plt.plot(np.arange(start, start + length)/fs, data[channel][start:start+length], label=name)
+    with matplotlib.rc_context(rc):
+        plt.figure(figsize=figsize)
+        start = int(start)
+        length = int(length)
         
-    event_labeled=False
-    if events is not None and event_id is not None:
-        for event in events.copy():
-            event[0] -= first_samp
-            if event[0] > start and event[0] < start+length and event[2] == event_id:
-                if not event_labeled:
-                    plt.axvline((event[0])/fs+event_onset, color='r', label='event')
-                    event_labeled=True
-                else:
-                    plt.axvline((event[0])/fs+event_onset, color='r')
-    plt.xlabel('time (s)')
-    plt.ylabel('Amplitude (V)')
-    plt.title(f'{name}')
-    plt.legend()
-    if ylim is not None:
-        plt.ylim(ylim)
-    
-    if save_pth is not None:
-        plt.savefig(save_pth)
-        plt.close()
-    else:
-        plt.show()
+        plt.plot(np.arange(start, start + length)/fs, data[channel][start:start+length])
+            
+        # === y-axis scaling: new requested logic ===
+        seg = np.asarray(data[channel][start:start+length], dtype=float)
+
+        # 1) determine raw min/max (respect user-supplied ylim if provided)
+        if ylim is None:
+            raw_min = np.nanmin(seg) if seg.size > 0 else 0.0
+            raw_max = np.nanmax(seg) if seg.size > 0 else 0.0
+        else:
+            raw_min, raw_max = float(ylim[0]), float(ylim[1])
+
+        # handle degenerate / zero-range signals
+        if np.isclose(raw_min, raw_max):
+            if np.isclose(raw_min, 0.0):
+                raw_min, raw_max = -1.0, 1.0
+            else:
+                span = abs(raw_min) * 0.1 if abs(raw_min) > 0 else 1.0
+                raw_min = raw_min - span
+                raw_max = raw_max + span
+
+        # 2) compute med and height (half-range)
+        med = 0.5 * (raw_min + raw_max)
+        height = raw_max - med   # equals (raw_max - raw_min)/2
+
+        # 3) choose exponent so that 1 < height_scaled < 10 (strict)
+        if height <= 0:
+            exp = 0
+        else:
+            exp = int(floor(log10(abs(height))))
+            # adjust so the scaled height is strictly < 10 and > 1
+            # height_s = height / 10**exp
+            # want 1 < height_s < 10  => adjust exp accordingly
+            while True:
+                height_s = height / (10 ** exp)
+                if height_s <= 1:
+                    exp -= 1
+                    continue
+                if height_s >= 10:
+                    exp += 1
+                    continue
+                break
+
+        factor = 10 ** exp
+        # scaled (display) coordinates
+        raw_min_s = raw_min / factor
+        raw_max_s = raw_max / factor
+        med_s = med / factor
+
+        # 4) center = closest two-decimal to med_s
+        center_s = round(med_s, 2)   # \d.\d\d formatting achieved via rounding to 2 decimals
+
+        # helper to round up step to nearest 0.01 multiple
+        def step_round_up(x):
+            return np.ceil(x * 100.0) / 100.0
+
+        # try candidate tick counts (7,9,11); pick the candidate that covers data and minimizes span
+        candidates = []
+        for n_ticks in candidate_tick_counts:
+            half = (n_ticks - 1) / 2.0
+            # minimal step needed so that center +/- half*step covers raw_min_s..raw_max_s
+            # step_needed = max( (center - raw_min_s)/half, (raw_max_s - center)/half )
+            # protect half==0 (not possible for n>=7)
+            step_needed = 0.0
+            left_need = (center_s - raw_min_s) / half
+            right_need = (raw_max_s - center_s) / half
+            step_needed = max(left_need, right_need, 0.0)
+
+            # if step_needed is zero (rare, e.g., all equal), use minimal step 0.01
+            if step_needed <= 0:
+                step_needed = 0.01
+
+            # round up step_needed to nearest 0.01 so ticks are of form \d.\d\d
+            step = step_round_up(step_needed)
+
+            # If step is too large such that ticks would hit/ exceed -10 or 10, this candidate fails
+            # compute candidate limits
+            tmin = center_s - half * step
+            tmax = center_s + half * step
+
+            # ensure ticks are two-decimal; center_s is already 2-decimal and step is multiple of 0.01
+            # Now check that candidate limits (in scaled coords) cover the actual scaled data
+            covers = (tmin <= raw_min_s + 1e-12) and (tmax >= raw_max_s - 1e-12)
+            # also ensure no tick equals exactly -10 or 10 (per your prior rules — optional but safe)
+            if np.any(np.isclose(np.array([tmin, tmax]), -10.0, atol=1e-9)) or np.any(np.isclose(np.array([tmin, tmax]), 10.0, atol=1e-9)):
+                covers = False
+
+            # also ensure ticks stay reasonably inside -10..10 (a little margin)
+            if tmin <= -10.0 + 1e-12 or tmax >= 10.0 - 1e-12:
+                covers = False
+
+            if covers:
+                # compute raw-data ylim candidate and span
+                ylim_low_raw = tmin * factor
+                ylim_high_raw = tmax * factor
+                span_raw = ylim_high_raw - ylim_low_raw
+                candidates.append({
+                    'n': n_ticks,
+                    'step': step,
+                    'tmin': tmin,
+                    'tmax': tmax,
+                    'ylim': (ylim_low_raw, ylim_high_raw),
+                    'span': span_raw
+                })
+
+        # choose best candidate (minimize span)
+        chosen = None
+        if candidates:
+            candidates = sorted(candidates, key=lambda x: x['span'])
+            chosen = candidates[0]
+
+        # 5) fallback if none chosen: use n_ticks=7 and ylim = [raw_min, raw_max]
+        if chosen is None:
+            n_ticks = 7
+            # Try to create nice 2-decimal ticks if possible; otherwise simply set ylim=[raw_min,raw_max]
+            # Compute step as span/(n_ticks-1)
+            if raw_max_s - raw_min_s <= 0:
+                step = 0.01
+            else:
+                step = (raw_max_s - raw_min_s) / (n_ticks - 1)
+                # round up to nearest 0.01
+                step = max(0.01, step_round_up(step))
+            # build ticks centered not necessary; just produce ticks that span [raw_min_s, raw_max_s]
+            # build tmin as raw_min_s (rounded down to 2 decimals in index units)
+            tmin = round(raw_min_s, 2)
+            # ensure tmin is of form with 2 decimals; force as floor to multiple of 0.01
+            tmin_idx = int(np.floor(tmin * 100.0))
+            tmin = tmin_idx / 100.0
+            tmax = tmin + (n_ticks - 1) * step
+            ylim_low_raw = tmin * factor
+            ylim_high_raw = tmax * factor
+            chosen = {
+                'n': n_ticks,
+                'step': step,
+                'tmin': tmin,
+                'tmax': tmax,
+                'ylim': (ylim_low_raw, ylim_high_raw),
+                'span': ylim_high_raw - ylim_low_raw,
+                'fallback': True
+            }
+
+        # Build ticks from chosen
+        step = chosen['step']
+        tmin = chosen['tmin']
+        tmax = chosen['tmax']
+        n_ticks = chosen['n']
+
+        # generate indexes and displayed tick numbers (scaled coords)
+        # ensure numerical stability with rounding to 2 decimals
+        idxs = np.arange(0, n_ticks)
+        disp_ticks = np.round(tmin + idxs * step, 2)   # two-decimal displayed ticks
+        ytick_vals = disp_ticks * factor               # convert back to raw-data coords
+
+        # Format labels: always two decimals as requested (\d.\d\d)
+        ytick_labels = [f"{v:.2f}" for v in disp_ticks]
+
+        plt.yticks(ytick_vals, ytick_labels)
+        # set tight ylim according to chosen (ensure signal is within)
+        plt.ylim(chosen['ylim'])
+
+        # y label exactly as requested
+        plt.ylabel(fr"Amplitude ($\times 10^{{{exp}}}$ V)")
+        plt.xlabel('time (s)')
+        # === end new y-axis logic ===
+        plt.xlim(start / fs, (start + length) / fs)
+        
+                # --- event raster: draw small colored markers in rows below the trace ---
+        # normalize events/event_id into parallel lists (support both single and list forms)
+        if isinstance(events, (list, tuple)) and isinstance(event_id, (list, tuple)):
+            ev_list = list(events)
+            id_list = list(event_id)
+            if isinstance(event_name, (list, tuple)) and len(event_name) == len(ev_list):
+                names = list(event_name)
+            else:
+                names = [event_name] * len(ev_list)
+        else:
+            ev_list = [events]
+            id_list = [event_id]
+            names = [event_name]
+
+        # visual params
+        marker = '^'
+        marker_size = 60
+        z = 6
+
+        # compute positions for raster rows (placed below the plotted signal)
+        y0, y1 = plt.ylim()
+        y_span = y1 - y0
+        row_gap = 0.03 * y_span             # gap between signal bottom and first raster row
+        row_step = 0.02 * y_span            # vertical spacing between rows
+        max_rows = len(ev_list)
+        # don't allow raster to extend >20% of plot height; compress if necessary
+        if max_rows * row_step + row_gap > 0.20 * y_span:
+            row_step = max(0.20 * y_span - row_gap, 0.001 * y_span) / max(1, max_rows)
+
+        any_plotted = False
+        for i, (ev_arr, eid, nm) in enumerate(zip(ev_list, id_list, names)):
+            if ev_arr is None:
+                continue
+            try:
+                evs = ev_arr.copy()
+            except Exception:
+                evs = np.array(ev_arr)
+            xs = []
+            for ev in evs:
+                # support both Nx>=1 arrays (ev[0] sample, ev[2] code) and scalar event formats
+                try:
+                    samp = int(ev[0]) - first_samp
+                    code = ev[2] if len(ev) > 2 else None
+                except Exception:
+                    try:
+                        samp = int(ev) - first_samp
+                        code = None
+                    except Exception:
+                        continue
+                if samp > start and samp < start + length:
+                    if (eid is None) or (code == eid):
+                        xs.append(samp / fs + event_onset)
+            if len(xs) == 0:
+                continue
+            # y position for this row (below plot)
+            y_row = y0 - row_gap - i * row_step
+            # label: use provided name (only once per series)
+            label = names[i] if isinstance(names[i], str) else f'event_{i}'
+            # draw markers but avoid clipping (also add a thin black edge for contrast)
+            plt.scatter(xs, [y_row] * len(xs),
+                        marker=marker, s=marker_size,
+                        facecolor=colors[i % len(colors)],
+                        edgecolors='k', linewidths=0.4,
+                        zorder=z, label=label,
+                        clip_on=False)
+
+            # ensure markers are not visually cropped: pad bottom ylim based on marker size (points -> data units)
+            fig = plt.gcf()
+            fig_h_in = fig.get_size_inches()[1]           # figure height in inches
+            marker_diam_pts = np.sqrt(marker_size)        # marker "diameter" in points (approx)
+            marker_h_in = marker_diam_pts / 72.0          # convert points -> inches (1 pt = 1/72 in)
+            # data-units per inch on the y-axis:
+            data_per_in = (y_span) / fig_h_in
+            # pad in data units; 0.6 factor because triangular marker height < full diameter
+            pad_data = marker_h_in * data_per_in * 0.6
+            # make sure pad is at least a small fraction of the y-span
+            pad_data = max(pad_data, 0.01 * y_span)
+
+        # after looping all rows (once), extend ylim to include lowest row + padding
+        if any_plotted:
+            min_row = y0 - row_gap - (max_rows - 1) * row_step
+            plt.ylim(min_row - pad_data, y1)
+        
+        if save_pth is not None:
+            plt.savefig(save_pth, bbox_inches='tight', pad_inches=0.01)
+            plt.close()
+        else:
+            plt.show()
     
 
 def temp_plot_diff(eeg, eeg2, channel, start=0, length=None, fs=None, events=None, event_id=None, plot_eeg=False, event_onset=0, name='BCG removal', save_pth=None, figsize=(20,3)):
