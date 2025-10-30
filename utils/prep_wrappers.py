@@ -78,19 +78,26 @@ def cleanup(dataset, userargs):
 def mid_crop(dataset, userargs):
     """Crops the raw data to the middle of the recording."""
     length = userargs.get('length', 250)  # Length of the crop in seconds    
-
-    tmin = dataset['raw'].times[0]
-    tmax = dataset['raw'].times[-1]
+    edge = userargs.get('edge', None)  # Edge to leave out from both sides in seconds
     
-    if length > (tmax - tmin):
-        raise ValueError(f"Length {length} seconds is longer than the recording duration {tmax - tmin} seconds.")
-    
-    mid = (tmin + tmax) / 2
-    tmin = mid - length / 2
-    tmax = mid + length / 2
+    if length is None and edge is not None:
+        tmin = dataset['raw'].times[0] + edge
+        tmax = dataset['raw'].times[-1] - edge
+    elif length is not None and edge is None:
+        tmin = dataset['raw'].times[0]
+        tmax = dataset['raw'].times[-1]
+        
+        if length > (tmax - tmin):
+            raise ValueError(f"Length {length} seconds is longer than the recording duration {tmax - tmin} seconds.")
+        
+        mid = (tmin + tmax) / 2
+        tmin = mid - length / 2
+        tmax = mid + length / 2
+    else:
+        raise ValueError("Please provide either 'length' or 'edge', not both.")
+        
     dataset['raw'].crop(tmin=tmin, tmax=tmax)
     return dataset
-        
 
 def init_tracer(dataset, userargs):
     """Initializes the EEGTracer with specific metrics for the dataset."""
