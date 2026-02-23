@@ -73,7 +73,7 @@ projects/<project>/
 └── ...
 ```
 
-See `projects/template/` for a step-by-step guide on setting up a new project.
+See [`projects/template/1.prep.ipynb`](projects/template/1.prep.ipynb) for a step-by-step tutorial on adapting the template into a working pipeline for your own dataset.
 
 ### Staresina resting-state dataset
 
