@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "semp"
+version = "2.0.0"
+description = "Simultaneous EEG-fMRI Preprocessing Toolbox"
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "torch",
+    "torchvision",
+    "scikit-learn",
+    "mne",
+    "nibabel",
+    "nilearn",
+    "matplotlib",
+    "seaborn",
+    "natsort",
+    "parse",
+    "tqdm",
+    "glmtools",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
