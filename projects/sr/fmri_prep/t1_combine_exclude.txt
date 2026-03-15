@@ -1,0 +1,5 @@
+# Sessions to exclude from T1 combination (one per line).
+# These scanner runs are skipped when collecting T1s for a given subject.
+# Format: sub-XXX_ses-YY_run-ZZ   # optional comment
+#
+sub-006_ses-01_run-01   # corrupted scan
