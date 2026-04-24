@@ -114,9 +114,10 @@ for sub_dir in "$DATA_ROOT"/sub-*/; do
                 echo "  excluded: $scanrun_id"
                 continue
             fi
-            # First T1 (lowest sequence number) in the W3T folder
-            t1=$(find "$run_dir" -maxdepth 2 -name "images_*_t1_mpr_*.nii" 2>/dev/null \
-                 | sort | head -1)
+            # First T1 (lowest sequence number) in the W3T folder (.nii or .nii.gz)
+            t1=$(find "$run_dir" -maxdepth 2 \
+                     \( -name "images_*_t1_mpr_*.nii" -o -name "images_*_t1_mpr_*.nii.gz" \) \
+                     2>/dev/null | sort | head -1)
             [[ -n "$t1" ]] && t1_files+=("$t1")
         done
     done
