@@ -1,0 +1,241 @@
+
+# FEAT version number
+set fmri(version) 6.00
+
+# Are we in MELODIC?
+set fmri(inmelodic) 0
+
+# Analysis level: 1 = First-level
+set fmri(level) 1
+
+# Which stages to run: 1 = Pre-stats only
+set fmri(analysis) 1
+
+# Use relative filenames
+set fmri(relative_yn) 0
+
+# Balloon help
+set fmri(help_yn) 0
+
+# Run Featwatcher (disable for batch jobs)
+set fmri(featwatcher_yn) 0
+
+# Cleanup first-level standard-space images
+set fmri(sscleanup_yn) 0
+
+# Output directory  [FILLED AT RUNTIME]
+set fmri(outputdir) "@@OUTPUTDIR@@"
+
+# TR (s)  [FILLED AT RUNTIME from fslval]
+set fmri(tr) @@TR@@
+
+# Total volumes  [FILLED AT RUNTIME from fslval]
+set fmri(npts) @@NPTS@@
+
+# Delete volumes
+set fmri(ndelete) 0
+
+# Perfusion tag/control order
+set fmri(tagfirst) 1
+
+# Number of first-level analyses
+set fmri(multiple) 1
+
+# Higher-level input type (irrelevant for first-level)
+set fmri(inputtype) 2
+
+# Carry out pre-stats processing?
+set fmri(filtering_yn) 1
+
+# Brain/background threshold, %
+set fmri(brain_thresh) 10
+
+# Critical z for design efficiency calculation
+set fmri(critical_z) 5.3
+
+# Noise level
+set fmri(noise) 0.66
+
+# Noise AR(1)
+set fmri(noisear) 0.34
+
+# Motion correction: 1 = MCFLIRT
+set fmri(mc) 1
+
+# Spin-history (obsolete)
+set fmri(sh_yn) 0
+
+# B0 fieldmap unwarping: 1 = yes
+set fmri(regunwarp_yn) 1
+
+# GDC warp: empty = no gradient distortion correction (scanner is new)
+set fmri(gdc) ""
+
+# EPI dwell time (ms)
+# Verify against your scanner's JSON sidecar (EffectiveEchoSpacing)
+set fmri(dwell) 0.52
+
+# EPI TE (ms)
+# Verify against your scanner's JSON sidecar (EchoTime * 1000)
+set fmri(te) 30.0
+
+# % Signal loss threshold
+set fmri(signallossthresh) 10
+
+# Unwarp direction: phase-encode direction for this acquisition
+set fmri(unwarp_dir) y-
+
+# Slice timing correction: 0 = none (multiband EPI; slice timing not standard)
+set fmri(st) 0
+
+# Slice timings file
+set fmri(st_file) ""
+
+# BET brain extraction inside FEAT
+set fmri(bet_yn) 1
+
+# Spatial smoothing FWHM (mm): 5mm recommended for resting-state ICA/FIX
+set fmri(smooth) 5
+
+# Intensity normalisation
+set fmri(norm_yn) 0
+
+# Perfusion subtraction
+set fmri(perfsub_yn) 0
+
+# Highpass temporal filtering
+set fmri(temphp_yn) 1
+
+# Lowpass temporal filtering
+set fmri(templp_yn) 0
+
+# MELODIC ICA inside FEAT: 0 = off (run separately post-FEAT for FIX)
+set fmri(melodic_yn) 0
+
+# Carry out main stats? 0 = no (preprocessing only)
+set fmri(stats_yn) 0
+
+# Carry out prewhitening?
+set fmri(prewhiten_yn) 1
+
+# Add motion parameters to model
+set fmri(motionevs) 0
+set fmri(motionevsbeta) ""
+set fmri(scriptevsbeta) ""
+
+# Robust outlier detection in FLAME?
+set fmri(robust_yn) 0
+
+# Higher-level modelling (unused for preprocessing-only)
+set fmri(mixed_yn) 2
+
+# Number of EVs: 0 (no task design, preprocessing only)
+set fmri(evs_orig) 0
+set fmri(evs_real) 0
+set fmri(evs_vox) 0
+
+# Number of contrasts
+set fmri(ncon_orig) 1
+set fmri(ncon_real) 1
+
+# Number of F-tests
+set fmri(nftests_orig) 0
+set fmri(nftests_real) 0
+
+# Add constant column to design matrix? (obsolete)
+set fmri(constcol) 0
+
+# Carry out post-stats steps?
+set fmri(poststats_yn) 0
+
+# Pre-threshold masking?
+set fmri(threshmask) ""
+
+# Thresholding
+set fmri(thresh) 3
+
+# P threshold
+set fmri(prob_thresh) 0.05
+
+# Z threshold
+set fmri(z_thresh) 3.1
+
+# Z min/max for colour rendering
+set fmri(zdisplay) 0
+set fmri(zmin) 2
+set fmri(zmax) 8
+
+# Colour rendering type
+set fmri(rendertype) 1
+
+# Background image for higher-level stats overlays
+set fmri(bgimage) 1
+
+# Create time series plots
+set fmri(tsplot_yn) 1
+
+# Registration to initial structural
+set fmri(reginitial_highres_yn) 0
+set fmri(reginitial_highres_search) 90
+set fmri(reginitial_highres_dof) 3
+
+# Registration to main structural (T1)
+set fmri(reghighres_yn) 1
+set fmri(reghighres_search) 90
+
+# Degrees of freedom for EPI->T1: BBR (boundary-based, most accurate)
+set fmri(reghighres_dof) BBR
+
+# Registration to standard space
+set fmri(regstandard_yn) 1
+
+# Use alternate reference image (SBRef) for registration
+set fmri(alternateReference_yn) 1
+
+# Standard image (MNI152 2mm)  — resolved at runtime via $FSLDIR
+set fmri(regstandard) "@@MNI_BRAIN@@"
+
+# Search space for registration to standard space
+set fmri(regstandard_search) 90
+
+# Degrees of Freedom for registration to standard space: 12 (affine)
+set fmri(regstandard_dof) 12
+
+# Nonlinear registration from structural to standard space
+set fmri(regstandard_nonlinear_yn) 1
+
+# Nonlinear warp field resolution (mm)
+set fmri(regstandard_nonlinear_warpres) 10
+
+# High pass filter cutoff (s)
+set fmri(paradigm_hp) 100
+
+# Number of lower-level copes
+set fmri(ncopeinputs) 0
+
+# 4D BOLD input  [FILLED AT RUNTIME]
+set feat_files(1) "@@FEAT_FILE@@"
+
+# Add confound EVs text file
+set fmri(confoundevs) 0
+
+# Alternate reference image (SBRef)  [FILLED AT RUNTIME]
+set alt_ex_func(1) "@@ALT_EX_FUNC@@"
+
+# B0 fieldmap (radians)  [FILLED AT RUNTIME]
+set unwarp_files(1) "@@UNWARP_FILE@@"
+
+# B0 fieldmap magnitude brain  [FILLED AT RUNTIME]
+set unwarp_files_mag(1) "@@UNWARP_MAG@@"
+
+# Subject T1 brain  [FILLED AT RUNTIME]
+set highres_files(1) "@@HIGHRES@@"
+
+##########################################################
+# Options that don't appear in the GUI
+
+set fmri(alternative_mask) ""
+set fmri(init_initial_highres) ""
+set fmri(init_highres) ""
+set fmri(init_standard) ""
+set fmri(overwrite_yn) 0
