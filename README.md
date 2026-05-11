@@ -2,7 +2,7 @@
 
 Tools for analysing EEG acquired during simultaneous EEG-fMRI experiments.
 
-This package is built on top of [osl-ephys](https://github.com/OHBA-analysis/osl-ephys) and provides EEG-fMRI specific preprocessing and analysis tools. Visualisation of source-space results is self-contained — osl-dynamics is no longer required.
+This package is built on top of [osl-ephys](https://github.com/OHBA-analysis/osl-ephys) and provides EEG-fMRI specific preprocessing and analysis tools. The NIfTI mask + parcellation atlases used for source-space visualisation come from osl-ephys's bundled `source_recon/files/` directory, so installing osl-ephys is sufficient — no separate atlas download.
 
 The interactive manual-ICA review (browser-based per-IC inspection + label/bad-segment server) lives in the standalone [osl-manual-ica](https://github.com/) package; semp re-exports its `manual_ica` wrapper so existing configs keep working unchanged.
 
@@ -13,7 +13,7 @@ semp/
 ├── src/semp/               # installable package
 │   ├── preprocessing/      # EEG signal processing and preprocessing wrappers
 │   ├── source_recon/       # source reconstruction wrappers
-│   ├── utils/              # pathfinder, I/O, metrics, osl-ephys/osl-dynamics extensions
+│   ├── utils/              # pathfinder, I/O, metrics, parcellation/brain-surface plot helpers
 │   └── visualize/          # statistical analysis and visualisation
 └── projects/               # user analysis scripts (not part of the package)
     ├── template/           # step-by-step tutorial for building a new project
@@ -21,19 +21,6 @@ semp/
     ├── sr_manual/          # Staresina resting-state EEG-fMRI (manual-ICA)
     └── wmt/                # WMT project
 ```
-
-### What is available in each environment
-
-| Module | osl-ephys env | core (no optional deps) |
-|--------|:-------------:|:-----------------------:|
-| `semp.preprocessing` (helpers, metrics) | ✓ | ✓ |
-| `semp.preprocessing` (prep wrappers) | ✓ | — |
-| `semp.utils` (pathfinder, I/O, metrics) | ✓ | ✓ |
-| `semp.utils.osle_expansion` | ✓ | — |
-| `semp.utils.osld_extension` | ✓ | ✓ |
-| `semp.source_recon` | ✓ | — |
-| `semp.visualize` (statistics, array ops) | ✓ | ✓ |
-| `semp.visualize.visualize` (power/connectivity maps) | ✓ | ✓ |
 
 ## Installation
 
@@ -69,10 +56,11 @@ import osl_manual_ica
 # manual ICA review wrapper available
 ```
 
-> **Note:** osl-dynamics is no longer required. The visualisation routines
-> that previously depended on it have been ported into `semp.utils.osld_extension`.
-> If osl-dynamics is installed its bundled NIfTI parcellation/mask files are
-> discovered automatically; otherwise you must supply absolute paths.
+> **Note:** The brain-surface and connectome plots in
+> `semp.utils.parcel_plot` need a few NIfTI files (MNI brain mask +
+> parcellation atlases). These are picked up automatically from
+> `osl_ephys/source_recon/files/` --- no extra setup required as long as
+> osl-ephys is installed. To use a custom atlas, pass an absolute path.
 
 ## Usage
 

@@ -14,7 +14,7 @@ from matplotlib.colors import LinearSegmentedColormap, Normalize, CenteredNorm
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from itertools import cycle
 from nilearn.plotting import plot_glass_brain
-from semp.utils.osld_extension import (
+from semp.utils.parcel_plot import (
     check_exists as _files_check_exists,
     mask_directory as _mask_directory,
     parcellation_directory as _parcellation_directory,
@@ -887,7 +887,7 @@ class DynamicVisualizer():
             fontsize=20,
             plot_kwargs={},
         ):
-        """Plots state-specific power map(s). Wrapper for `osl_dynamics.analysis.power.save().
+        """Plots state-specific power map(s) on the brain surface.
 
         Parameters
         ----------
@@ -960,7 +960,7 @@ class DynamicVisualizer():
             colormap="bwr",
             plot_kwargs={},
         ):
-        """Plots state-specific connectivity map(s). Wrapper for `osl_dynamics.analysis.connectivity.save()`.
+        """Plots state-specific connectivity map(s) as a glass-brain network.
 
         Parameters
         ----------

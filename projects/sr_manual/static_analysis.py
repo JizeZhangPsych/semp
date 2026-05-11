@@ -4,20 +4,24 @@ Staresina resting EEG-fMRI dataset.
 Replaces the legacy ``semp/projects/sr/static_analysis.py``:
 
   * pulls source-recon files via the sr_manual pathfinder (after_src_sr_manual)
-  * uses ``semp.visualize`` (StaticVisualizer / _colormap_transparent) instead
-    of the now-deleted ``semp_old`` tree
+  * uses ``semp.visualize`` (StaticVisualizer / _colormap_transparent) for the
+    brain-surface and connectome figures
   * implements ``compute_aec`` inline (bandpass -> Hilbert envelope ->
-    pairwise Pearson correlation), since osl_dynamics has no built-in AEC and
-    the previous helper lived in semp_old
+    pairwise Pearson correlation)
   * caches the per-band, per-subject envelope-correlation matrices on disk so
     re-running visualisation is cheap
 
+This script is the **only** osl-dynamics consumer in the repo --- semp itself
+does not depend on it, but ``static.welch_spectra`` /
+``power.variance_from_spectra`` / ``connectivity.threshold`` from osl-dynamics
+are used here directly. Use an env where ``osl_dynamics.analysis.connectivity``
+imports cleanly:
+
+  * ``general``     --- works (nilearn 0.10.4 + working osl-dynamics)
+  * ``semp_stable`` --- crashes at osl-dynamics import (missing ``pqdm``)
+
 Run from anywhere:
     /ohba/pi/mwoolrich/jzhang/conda/envs/general/bin/python static_analysis.py
-
-Use the ``general`` env: it has nilearn 0.10.4 + a working osl_dynamics.
-The ``semp_stable`` env can't import ``osl_dynamics.analysis.connectivity``
-(missing pqdm) and will crash at import time below.
 """
 #%%
 import os

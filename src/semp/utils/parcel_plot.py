@@ -1,15 +1,16 @@
-"""
-Standalone reimplementation of osl_dynamics utilities used by semp.visualize.
+"""Parcellation- and brain-surface plotting helpers used by semp.visualize.
 
-Copied and adapted from osl-dynamics (https://github.com/OHBA-analysis/osl-dynamics).
-This module removes osl_dynamics as a hard dependency while preserving the same API.
+Provides:
+  - mask_directory / parcellation_directory   --- where the bundled NIfTIs live
+  - check_exists                              --- path resolver under those dirs
+  - Parcellation                              --- parcel-aware NIfTI wrapper
+  - parcel_vector_to_voxel_grid               --- parcel array -> voxel grid
+  - plot_line / plot_psd_topo / plot_brain_surface
+  - variance_from_spectra / power_save        --- band-power surface plots
+  - connectivity_save                         --- connectome glass-brain plots
 
-Covered functionality:
-  - files: check_exists, mask_directory, parcellation_directory
-  - parcellation: Parcellation class, parcel_vector_to_voxel_grid
-  - plotting: plot_line, plot_psd_topo, plot_brain_surface
-  - power: variance_from_spectra, power_save
-  - connectivity: connectivity_save
+The bundled NIfTI files (mask, parcellation atlases) ship with osl-ephys
+under ``osl_ephys/source_recon/files/``; we discover them at import time.
 """
 
 import logging
@@ -35,7 +36,7 @@ _nilearn_ver_tuple = tuple(int(x) for x in nilearn.__version__.split('.')[:2]
                            if x.isdigit())
 if _nilearn_ver_tuple and _nilearn_ver_tuple < _NILEARN_MIN:
     warnings.warn(
-        f'semp.utils.osld_extension: nilearn=={nilearn.__version__} is older '
+        f'semp.utils.parcel_plot: nilearn=={nilearn.__version__} is older '
         f'than the supported floor {_NILEARN_MIN[0]}.{_NILEARN_MIN[1]}; '
         f'plotting may fail.', stacklevel=2,
     )
@@ -50,27 +51,24 @@ logging.getLogger("matplotlib.category").setLevel(logging.ERROR)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Directory constants — point to NIfTI files bundled inside osl_dynamics.
-# If osl_dynamics is installed the paths are resolved dynamically; otherwise
-# users must supply absolute paths to mask/parcellation files.
+# Directory constants --- the bundled NIfTI files (MNI brain mask + the
+# fmri_d100_parcellation atlases) ship with osl-ephys's source_recon module
+# at ``osl_ephys/source_recon/files/``. We read both kinds out of the same
+# directory; the legacy ``mask_directory`` / ``parcellation_directory`` split
+# is preserved for API compatibility but both point to the same path.
 # ──────────────────────────────────────────────────────────────────────────────
 try:
-    import importlib.util as _ilu
-    _spec = _ilu.find_spec("osl_dynamics")
-    if _spec is not None:
-        _osld_base = Path(_spec.origin).parent
-        mask_directory = str(_osld_base / "files" / "mask")
-        parcellation_directory = str(_osld_base / "files" / "parcellation")
-    else:
-        mask_directory = ""
-        parcellation_directory = ""
+    import osl_ephys as _osl_ephys
+    _files_dir = str(Path(_osl_ephys.__file__).parent / 'source_recon' / 'files')
+    mask_directory = _files_dir
+    parcellation_directory = _files_dir
 except Exception:
     mask_directory = ""
     parcellation_directory = ""
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# File utilities  (osl_dynamics.files.functions)
+# File utilities
 # ──────────────────────────────────────────────────────────────────────────────
 def check_exists(filename, directory=""):
     """Look for a file on disk, falling back to a bundled-files directory."""
@@ -83,7 +81,7 @@ def check_exists(filename, directory=""):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Internal helpers (osl_dynamics.utils.misc / array_ops / analysis.spectral)
+# Internal helpers
 # ──────────────────────────────────────────────────────────────────────────────
 def _override_dict_defaults(default_dict, override_dict=None):
     if override_dict is None:
@@ -111,7 +109,7 @@ def _get_frequency_args_range(frequencies, frequency_range):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Parcellation  (osl_dynamics.utils.parcellation)
+# Parcellation
 # ──────────────────────────────────────────────────────────────────────────────
 class Parcellation:
     """Read a parcellation NIfTI and expose parcel geometry.
@@ -261,7 +259,7 @@ def parcel_vector_to_voxel_grid(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Plotting utilities  (osl_dynamics.utils.plotting)
+# Plotting utilities
 # ──────────────────────────────────────────────────────────────────────────────
 def plot_line(
     x,
@@ -279,7 +277,7 @@ def plot_line(
     ax=None,
     filename=None,
 ):
-    """Basic line plot (mirrors osl_dynamics.utils.plotting.plot_line)."""
+    """Basic line plot."""
     if len(x) != len(y):
         raise ValueError("Different number of x and y arrays given.")
 
@@ -510,7 +508,7 @@ def plot_brain_surface(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Power utilities  (osl_dynamics.analysis.power)
+# Power utilities
 # ──────────────────────────────────────────────────────────────────────────────
 def variance_from_spectra(
     frequencies,
@@ -736,7 +734,7 @@ def power_save(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Connectivity utilities  (osl_dynamics.analysis.connectivity)
+# Connectivity utilities
 # ──────────────────────────────────────────────────────────────────────────────
 def connectivity_save(
     connectivity_map,

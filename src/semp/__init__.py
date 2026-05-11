@@ -2,12 +2,13 @@
 
 Available functionality depends on the installed environment:
   - Core (always): semp.utils, semp.preprocessing (helpers/metrics/extensions),
-                   semp.visualize (all — osl_dynamics no longer required)
-  - OSL-Ephys env: semp.preprocessing (prep wrappers), semp.source_recon,
-                   semp.utils.osle_expansion
+                   semp.visualize
+  - OSL-Ephys env: semp.preprocessing (prep wrappers), semp.source_recon
 
-osl-ephys is the primary optional dependency.  osl-dynamics is no longer a
-dependency — its needed routines are bundled in semp.utils.osld_extension.
+osl-ephys is the primary dependency. The bundled NIfTI mask / parcellation
+files used by ``semp.utils.parcel_plot`` and ``semp.visualize`` come from
+osl-ephys's ``source_recon/files/`` directory, so installing osl-ephys is
+sufficient --- no separate atlas download is required.
 """
 
 import warnings
@@ -15,18 +16,17 @@ import importlib.util
 
 # --- Detect installed optional environments ---
 HAS_OSLE = importlib.util.find_spec("osl_ephys") is not None
-HAS_OSLD = importlib.util.find_spec("osl_dynamics") is not None  # kept for info only
 
 # --- Always import subpackages (each handles its own missing deps internally) ---
 from semp import utils, preprocessing, source_recon, visualize
 
-__all__ = ["utils", "preprocessing", "source_recon", "visualize", "HAS_OSLE", "HAS_OSLD"]
+__all__ = ["utils", "preprocessing", "source_recon", "visualize", "HAS_OSLE"]
 
 # --- Warn about missing environments ---
 if not HAS_OSLE:
     warnings.warn(
         "osl-ephys not found. EEG preprocessing/wrappers, source_recon, and "
-        "osle_expansion are unavailable. "
+        "the bundled NIfTI atlas files are unavailable. "
         "Install from: https://github.com/OHBA-analysis/osl-ephys",
         UserWarning,
         stacklevel=2,

@@ -4,13 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "semp"
-version = "2.1.0"
+version = "2.2.0"
 description = "Simultaneous EEG-fMRI Preprocessing Toolbox"
 requires-python = ">=3.8"
-# osl-ephys is the primary optional dependency (install into the same conda env).
-# osl-dynamics is no longer required; its routines are bundled in semp.utils.osld_extension.
-# osl-manual-ica is a hard dependency: semp.preprocessing.wrappers.ica re-exports
-# its ``manual_ica`` so existing semp configs keep working after the extraction.
+# osl-ephys is the primary dependency (install into the same conda env).
+# It also ships the bundled NIfTI mask / parcellation files used by
+# semp.utils.parcel_plot and semp.visualize, so no separate atlas download.
+# osl-manual-ica is a hard dependency: semp.preprocessing.wrappers.ica
+# re-exports its ``manual_ica`` so existing semp configs keep working
+# after the extraction.
 dependencies = [
     "numpy",
     "scipy",

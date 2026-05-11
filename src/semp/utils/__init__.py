@@ -4,7 +4,7 @@ from .io import load_pkl, save_pkl
 from .metric import EEGTracer, EEG_BANDS, psd_band_ratio, psd_band_stat, mean_psd_in_band
 from .pathfinder import BasePathfinder
 from .logger import log_or_print
-from . import osld_extension
+from . import parcel_plot
 
 # --- OSL-Ephys dependent ---
 try:
