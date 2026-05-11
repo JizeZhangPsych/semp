@@ -16,11 +16,8 @@ def load_pkl(file_path):
         Loaded data.
     """
 
-    # Load input data
     with open(file_path, "rb") as input_path:
         data = pickle.load(input_path)
-    input_path.close()
-    
     return data
 
 def save_pkl(data, file_path):
@@ -35,7 +32,5 @@ def save_pkl(data, file_path):
     """
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-    # Save input data
     with open(file_path, "wb") as save_path:
         pickle.dump(data, save_path)
-    save_path.close()

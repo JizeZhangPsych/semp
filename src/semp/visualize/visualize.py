@@ -14,10 +14,19 @@ from matplotlib.colors import LinearSegmentedColormap, Normalize, CenteredNorm
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from itertools import cycle
 from nilearn.plotting import plot_glass_brain
-from osl_dynamics import files
-from osl_dynamics.analysis import power, connectivity
-from osl_dynamics.utils import plotting
-from osl_dynamics.utils.parcellation import Parcellation
+from semp.utils.osld_extension import (
+    check_exists as _files_check_exists,
+    mask_directory as _mask_directory,
+    parcellation_directory as _parcellation_directory,
+    Parcellation,
+    parcel_vector_to_voxel_grid,
+    plot_line,
+    plot_psd_topo,
+    plot_brain_surface,
+    variance_from_spectra,
+    power_save,
+    connectivity_save,
+)
 from .array_ops import round_nonzero_decimal, round_up_half
 from .statistics import fit_glm, cluster_perm_test
 
@@ -158,7 +167,7 @@ def plot_loss_curve(loss, x_step=5, save_dir=None):
     epochs = np.arange(1, len(loss) + 1)
 
     # Plot loss curve
-    fig, ax = plotting.plot_line([epochs], [loss], plot_kwargs={"lw": 2})
+    fig, ax = plot_line([epochs], [loss], plot_kwargs={"lw": 2})
     ax.set_xticks(np.arange(0, len(loss) + x_step, x_step))
     ax.tick_params(axis='both', which='both', labelsize=18, width=2)
     ax.set_xlabel("Epochs", fontsize=18)
@@ -308,13 +317,13 @@ def plot_surfaces(
     data_map = np.copy(data_map)
 
     # Validation
-    mask_file = files.check_exists(mask_file, files.mask.directory)
-    parcellation_file = files.check_exists(
-        parcellation_file, files.parcellation.directory
+    mask_file = _files_check_exists(mask_file, _mask_directory)
+    parcellation_file = _files_check_exists(
+        parcellation_file, _parcellation_directory
     )
 
     # Calculate data map grid
-    data_map = power.parcel_vector_to_voxel_grid(mask_file, parcellation_file, data_map)
+    data_map = parcel_vector_to_voxel_grid(mask_file, parcellation_file, data_map)
 
     # Load the mask
     mask = nib.load(mask_file)
@@ -737,7 +746,7 @@ class StaticVisualizer():
         """
 
         # Plot surface power map
-        figures, axes = power.save(
+        figures, axes = power_save(
             power_map=power_map,
             mask_file=self.mask_file,
             parcellation_file=self.parcellation_file,
@@ -794,7 +803,7 @@ class StaticVisualizer():
         # Plot AEC connectivity network
         fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(9, 3))
         plot_kwargs.update({"edge_cmap": colormap, "figure": fig, "colorbar": False})
-        connectivity.save(
+        connectivity_save(
             connectivity_map=connectivity_map,
             parcellation_file=self.parcellation_file,
             plot_kwargs=plot_kwargs,
@@ -909,7 +918,7 @@ class DynamicVisualizer():
 
         # Plot surface power maps
         plot_kwargs.update({"cmap": colormap})
-        figures, axes = power.save(
+        figures, axes = power_save(
             power_map=power_map,
             mask_file=self.mask_file,
             parcellation_file=self.parcellation_file,
@@ -977,7 +986,7 @@ class DynamicVisualizer():
         for n in range(n_states):
             fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(9, 3))
             temp_kwargs = {"edge_cmap": colormap, "figure": fig, "axes": ax}
-            connectivity.save(
+            connectivity_save(
                 connectivity_map=connectivity_map[n, :],
                 parcellation_file=self.parcellation_file,
                 plot_kwargs={**plot_kwargs, **temp_kwargs},
@@ -1034,7 +1043,7 @@ class DynamicVisualizer():
         hmin, hmax = 0, np.ceil(freqs[-1])
 
         for n in range(n_states):
-            fig, ax = plotting.plot_line(
+            fig, ax = plot_line(
                 [freqs],
                 [psd[n]],
                 errors=[[psd[n, :] - error[n, :]], [psd[n, :] + error[n, :]]],
@@ -1065,14 +1074,32 @@ class DynamicVisualizer():
         return None
 
 class GroupDifferencePSD():
-    """Class for visualizing group-level spectral differences"""
-    def __init__(self, freqs, gpsd1, gpsd2, data_space, modality):
+    """Class for visualizing group-level spectral differences.
+
+    Parameters
+    ----------
+    freqs, gpsd1, gpsd2, data_space, modality : as before.
+    sensor_template_fif : str | Path | None
+        Only used when ``data_space == 'sensor'``. A raw FIF whose channel
+        layout we'll use to read sensor positions (and, for EEG, a "common"
+        sensor selection). If ``None``, sensor-space plotting raises so the
+        user is forced to point at a real file (the legacy hard-coded NTAD
+        path is gone).
+    common_eeg_sensor_pkl : str | Path | None
+        Only used when ``data_space == 'sensor'`` and ``modality == 'eeg'``.
+        Pickle containing ``{'EasyCap70': <indexer>}``. If ``None``, all EEG
+        channels in ``sensor_template_fif`` are used.
+    """
+    def __init__(self, freqs, gpsd1, gpsd2, data_space, modality,
+                 sensor_template_fif=None, common_eeg_sensor_pkl=None):
         # Organize input parameters
         self.freqs = freqs
         self.gpsd1 = gpsd1
         self.gpsd2 = gpsd2
         self.data_space = data_space
         self.modality = modality
+        self.sensor_template_fif   = sensor_template_fif
+        self.common_eeg_sensor_pkl = common_eeg_sensor_pkl
 
         # Get file paths to parcellation data
         self.mask_file = "MNI152_T1_8mm_brain.nii.gz"
@@ -1109,24 +1136,30 @@ class GroupDifferencePSD():
         # Get ROI positions
         if self.data_space == "source":
             # Get the center of each parcel
-            parcellation = Parcellation(self.parcellation_file)
-            roi_centers = parcellation.roi_centers()
+            parc = Parcellation(self.parcellation_file)
+            roi_centers = parc.roi_centers()
         if self.data_space == "sensor":
-            # Get sensor positions from an example subject
+            # Get sensor positions from a user-supplied template raw fif.
+            # The legacy implementation hard-coded NTAD-specific paths under
+            # /ohba/pi/mwoolrich/scho/...; require the caller to opt in
+            # explicitly so this class works for any sensor layout.
+            if self.sensor_template_fif is None:
+                raise ValueError(
+                    "GroupDifferencePSD(data_space='sensor', ...) requires "
+                    "sensor_template_fif=<path to a representative raw fif>"
+                )
             eeg_flag, meg_flag = False, False
             if self.modality == "eeg":
-                raw = mne.io.read_raw_fif("/ohba/pi/mwoolrich/scho/NTAD/preproc/eeg/P1058_resting_close_bl_raw_tsss/P1058_resting_close_bl_tsss_preproc_raw.fif")
-                # Select common sensor locations (to account for different EEG layouts)
-                if self.data_space == "sensor":
+                raw = mne.io.read_raw_fif(str(self.sensor_template_fif))
+                if self.common_eeg_sensor_pkl is not None:
                     eeg_ch_names = np.array(raw.info["ch_names"])[mne.pick_types(raw.info, eeg=True)]
-                    with open("/home/scho/AnalyzeNTAD/results/data/common_eeg_sensor.pkl", "rb") as input_path:
-                        common_eeg_idx = pickle.load(input_path)
-                    input_path.close()
+                    with open(self.common_eeg_sensor_pkl, "rb") as fh:
+                        common_eeg_idx = pickle.load(fh)
                     eeg_ch_names = eeg_ch_names[common_eeg_idx["EasyCap70"]]
                     raw = raw.pick_channels(eeg_ch_names, ordered=True, verbose=None)
                 eeg_flag = True
             if self.modality == "meg":
-                raw = mne.io.read_raw_fif("/ohba/pi/mwoolrich/scho/NTAD/preproc/meg/P1007_resting_close_bl_raw_tsss/P1007_resting_close_bl_tsss_preproc_raw.fif")
+                raw = mne.io.read_raw_fif(str(self.sensor_template_fif))
                 meg_flag = True
              # Get the position of each channel
             roi_centers = raw._get_channel_positions()
@@ -1146,7 +1179,7 @@ class GroupDifferencePSD():
                 #       MEG CamCAN used only orthogonal planar gradiometers (i.e., no axial gradiometers)
                 # Repeat specifically for magnetometers
                 mag_order = np.argsort(roi_centers_mag[:, 1])
-                roi_ceneters_mag = roi_centers_mag[mag_order]
+                roi_centers_mag = roi_centers_mag[mag_order]
                 mag_picks = mag_picks[mag_order]
                 gpsd_diff_mag = gpsd_diff_mag[mag_order, :]
 
@@ -1208,8 +1241,8 @@ class GroupDifferencePSD():
         # Compute inputs and frequencies to draw topomaps (low frequency, beta)
         low_beta_range = [[1.5, 8], [13, 20]]
         topo_data = [
-            power.variance_from_spectra(self.freqs, self.gpsd_diff, frequency_range=low_beta_range[0]),
-            power.variance_from_spectra(self.freqs, self.gpsd_diff, frequency_range=low_beta_range[1]),
+            variance_from_spectra(self.freqs, self.gpsd_diff, frequency_range=low_beta_range[0]),
+            variance_from_spectra(self.freqs, self.gpsd_diff, frequency_range=low_beta_range[1]),
         ] # dim: (n_band, n_parcels)
         topo_freq_bottom = [
             self.freqs[np.where(np.logical_and(self.freqs >= 1.5, self.freqs <= 8))].mean(),
@@ -1217,8 +1250,8 @@ class GroupDifferencePSD():
         ]
         if self.data_space == "sensor" and self.modality == "meg":
             topo_data_mag = [
-                power.variance_from_spectra(self.freqs, self.gpsd_diff_mag, frequency_range=low_beta_range[0]),
-                power.variance_from_spectra(self.freqs, self.gpsd_diff_mag, frequency_range=low_beta_range[1]),
+                variance_from_spectra(self.freqs, self.gpsd_diff_mag, frequency_range=low_beta_range[0]),
+                variance_from_spectra(self.freqs, self.gpsd_diff_mag, frequency_range=low_beta_range[1]),
             ]
         
         # Get maximum and minimum values for topomaps
@@ -1232,7 +1265,7 @@ class GroupDifferencePSD():
         # Visualize
         if self.data_space == "source":
             # Start a figure object
-            fig, ax = plotting.plot_psd_topo(
+            fig, ax = plot_psd_topo(
                 self.freqs,
                 self.gpsd_diff,
                 parcellation_file=self.parcellation_file,

@@ -29,7 +29,7 @@ source "$PIPELINE_DIR/config.sh"
 source "$LMOD_INIT"
 module load "$FSL_MODULE"
 
-FUNC_BASE="$OUTPUT_ROOT/func"
+FUNC_BASE="$OUTPUT_ROOT/func_crop5"
 LOG_DIR="$PIPELINE_DIR/logs"
 mkdir -p "$LOG_DIR"
 

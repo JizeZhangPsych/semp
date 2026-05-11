@@ -17,12 +17,21 @@
 set -euo pipefail
 
 PIPELINE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$PIPELINE_DIR/config.sh"
 
-source "$LMOD_INIT"
+# Allow overriding config file via --config <file> (default: config.sh)
+CONFIG_FILE="$PIPELINE_DIR/config44.sh"
+_prev=""
+for _arg in "$@"; do
+    if [[ "$_prev" == "--config" ]]; then CONFIG_FILE="$_arg"; fi
+    _prev="$_arg"
+done
+unset _prev _arg
+source "$CONFIG_FILE"
+
+[[ -n "$LMOD_INIT" ]] && source "$LMOD_INIT"
 module load "$FSL_MODULE"
 
-FUNC_BASE="$OUTPUT_ROOT/func"
+FUNC_BASE="$OUTPUT_ROOT/func_crop5"
 LOG_DIR="$PIPELINE_DIR/logs"
 mkdir -p "$LOG_DIR"
 
@@ -31,11 +40,18 @@ mkdir -p "$LOG_DIR"
 # ---------------------------------------------------------------------------
 DRY_RUN=0
 SUBJECT_FILTER=""
+SUBJECT_PARITY=""   # "even" or "odd"
 BLOCK_FILTER=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --dry-run)  DRY_RUN=1; shift ;;
-        --subject)  SUBJECT_FILTER="$2"; shift 2 ;;
+        --config)   shift 2 ;;  # already consumed above
+        --subject)
+            case "$2" in
+                even|odd) SUBJECT_PARITY="$2" ;;
+                *)        SUBJECT_FILTER="$2" ;;
+            esac
+            shift 2 ;;
         --block)    BLOCK_FILTER="$2"; shift 2 ;;
         *) shift ;;
     esac
@@ -52,6 +68,12 @@ for block_dir in "$FUNC_BASE"/*_resting_*/; do
 
     [[ -n "$SUBJECT_FILTER" && "$block_id" != "${SUBJECT_FILTER}"* ]] && continue
     [[ -n "$BLOCK_FILTER"   && "$block_id" != "$BLOCK_FILTER"      ]] && continue
+    if [[ -n "$SUBJECT_PARITY" ]]; then
+        sub_num=$(echo "$block_id" | grep -oP '(?<=sub-)\d+')
+        remainder=$(( 10#$sub_num % 2 ))
+        [[ "$SUBJECT_PARITY" == "even" && $remainder -ne 0 ]] && continue
+        [[ "$SUBJECT_PARITY" == "odd"  && $remainder -eq 0 ]] && continue
+    fi
 
     feat_out="$block_dir/bold.feat"
     filtered="$feat_out/filtered_func_data.nii.gz"
@@ -87,11 +109,11 @@ for block_dir in "$FUNC_BASE"/*_resting_*/; do
     if melodic \
             -i "$feat_out/filtered_func_data" \
             -o "$ica_dir" \
-            --mask="$feat_out/mask" \
-            --bgimage="$feat_out/mean_func" \
             --tr="$tr" \
             --report --Oall \
-            -d 0 \
+            --vn \
+            --nobet \
+            --mmthresh=0.5 \
         2>&1 | tee -a "$log"
     then
         echo "DONE $(date)" >> "$log"

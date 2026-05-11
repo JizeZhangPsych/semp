@@ -4,7 +4,7 @@ from pathlib import Path
 import mne
 from .pathfinder import WorkingMemoryPathfinder
 from functools import partial
-from semp.eeg import SingletonEEG
+from semp.preprocessing import SingletonEEG
 from semp.utils import psd_band_ratio
 
 def initialize(dataset, userargs):

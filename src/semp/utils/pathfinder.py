@@ -141,6 +141,8 @@ class BasePathfinder(ABC, Mapping):
             paths[file_id] = {self.anchor: Path(fname)}
 
         # Step 2: possibly ambiguous patterns
+        n_anchor = len(paths)
+        all_dropped: dict[str, list[str]] = {}   # kind -> [file_ids]
         for kind, pattern in self.file_patterns.items():
             if kind == self.anchor:
                 continue
@@ -173,6 +175,21 @@ class BasePathfinder(ABC, Mapping):
                 paths[file_id][kind] = Path(candidates[0])
             for file_id in to_remove:
                 del paths[file_id]
+            if to_remove:
+                all_dropped[kind] = sorted(to_remove)
+
+        # Final summary so the per-id WARNING lines don't get lost in long
+        # batch logs ("there are 14 lines of 'file_id removed' above" is
+        # easier to spot than 14 scattered warnings).
+        n_dropped = n_anchor - len(paths)
+        if n_dropped:
+            kinds_str = ', '.join(f'{k}: {len(v)}' for k, v in all_dropped.items())
+            log_or_print(
+                f"{type(self).__name__}: dropped {n_dropped}/{n_anchor} "
+                f"file_ids due to missing required kinds ({kinds_str}). "
+                f"{len(paths)} file_ids retained.",
+                warning=True,
+            )
 
         object.__setattr__(self, "paths", paths)
 

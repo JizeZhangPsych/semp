@@ -18,6 +18,8 @@
 # Usage:
 #   bash run_fmri.sh
 #   bash run_fmri.sh --subject sub-001
+#   bash run_fmri.sh --subject even
+#   bash run_fmri.sh --subject odd
 #   bash run_fmri.sh --task resting
 #   bash run_fmri.sh --block sub-001_ses-01_scanrun-01_resting_01
 #   bash run_fmri.sh --dry-run
@@ -28,10 +30,10 @@ PIPELINE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$PIPELINE_DIR/config.sh"
 
 # Load FSL
-source "$LMOD_INIT"
+# source "$LMOD_INIT"
 module load "$FSL_MODULE"
 
-FUNC_BASE="$OUTPUT_ROOT/func"
+FUNC_BASE="$OUTPUT_ROOT/func_crop5"
 ANAT_BASE="$OUTPUT_ROOT/anat"
 LOG_DIR="$PIPELINE_DIR/logs"
 mkdir -p "$LOG_DIR"
@@ -141,12 +143,18 @@ process_block() {
 # ---------------------------------------------------------------------------
 DRY_RUN=0
 SUBJECT_FILTER=""
+SUBJECT_PARITY=""   # "even" or "odd"
 TASK_FILTER=""
 BLOCK_FILTER=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --dry-run)  DRY_RUN=1; shift ;;
-        --subject)  SUBJECT_FILTER="$2"; shift 2 ;;
+        --subject)
+            case "$2" in
+                even|odd) SUBJECT_PARITY="$2" ;;
+                *)        SUBJECT_FILTER="$2" ;;
+            esac
+            shift 2 ;;
         --task)     TASK_FILTER="$2"; shift 2 ;;
         --block)    BLOCK_FILTER="$2"; shift 2 ;;
         *) shift ;;
@@ -162,6 +170,12 @@ for sub_dir in "$DATA_ROOT"/sub-*/; do
     [[ -d "$sub_dir" ]] || continue
     sub=$(basename "$sub_dir")
     [[ -n "$SUBJECT_FILTER" && "$sub" != "$SUBJECT_FILTER" ]] && continue
+    if [[ -n "$SUBJECT_PARITY" ]]; then
+        sub_num=$(echo "$sub" | grep -oP '(?<=sub-)\d+')
+        remainder=$(( 10#$sub_num % 2 ))
+        [[ "$SUBJECT_PARITY" == "even" && $remainder -ne 0 ]] && continue
+        [[ "$SUBJECT_PARITY" == "odd"  && $remainder -eq 0 ]] && continue
+    fi
 
     for ses_dir in "$sub_dir"ses-*/; do
         [[ -d "$ses_dir" ]] || continue

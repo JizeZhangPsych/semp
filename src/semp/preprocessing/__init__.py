@@ -15,27 +15,28 @@ from .metric import EEGTracer, psd_band_ratio, psd_band_stat
 
 # extension.py is reserved for future use; not imported here.
 
-# --- OSL-Ephys dependent: EEG preprocessing wrappers ---
+# --- OSL-Ephys dependent: preprocessing wrappers ---
 try:
-    from .prep_wrappers import (
+    from .wrappers import (
         voltage_correction,
         cleanup,
         mid_crop,
+        set_channel_type_raw,
         init_tracer,
         summary,
         ckpt_report,
         crop_TR,
         crop_by_epoch,
-        set_channel_type_raw,
         create_epoch,
         epoch_ssp,
         epoch_aas,
         epoch_obs,
         slice_ica,
+        manual_ica,
+        apply_ica,
         _TimerRegistry,
         start_timer,
         end_timer,
     )
-    from .src_wrappers import polhemus_translation, plot_parc
 except ImportError:
     pass

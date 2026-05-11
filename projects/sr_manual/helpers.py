@@ -7,7 +7,9 @@ from functools import partial
 from semp.utils import psd_band_ratio
 from semp.preprocessing import SingletonEEG
 
-spurious_subject_list = ['13121', '8111', '8112', '8121', '17111', '17112', '31111', '31112', '31121']
+spurious_subject_list = frozenset({'13121', '8111', '8112', '8121',
+                                    '17111', '17112',
+                                    '31111', '31112', '31121'})
 
 def initialize(dataset, userargs):
     """ Initialize dataset with helper functions.
@@ -25,7 +27,7 @@ def initialize(dataset, userargs):
     dataset['tr_interval'] = userargs.get('tr_interval', 1.14)
     dataset['tr_event_key'] = userargs.get('tr_event_key', ['1200002'])
     dataset['he_event_key'] = userargs.get('he_event_key', ['128', '132', '192', '196'])
-    dataset['target_pth'] = userargs.get('target_pth', Path("/ohba/pi/mwoolrich/datasets/eeg-fmri_Staresina/after_prep_sr"))
+    dataset['target_pth'] = userargs.get('target_pth', Path("/ohba/pi/mwoolrich/datasets/oxford/staresina/eeg_fmri/after_prep_sr_manual"))
     
     dataset['pf'] = userargs['pf'] if 'pf' in userargs else StaresinaRestPathfinder()
     dataset['subject'] = dataset['pf'].filename2id(dataset['raw'].filenames[0], kind='rest')
@@ -43,6 +45,8 @@ def initialize(dataset, userargs):
             print("Warning: Subject 2111 has no data after 400s, so no cropping is needed.")
     if dataset['subject'] == '3112':   # mark first 35s as bad
         dataset['raw'].annotations.append(0, 35, 'BAD_START')
+    if dataset['subject'] == '4112':   # mark first 35s as bad
+        dataset['raw'].annotations.append(25, 28, 'BAD_SEGMENT')
     if dataset['subject'] == '4121':   # Accidental overwriting of resting stage EEG file after computer prompted an overwriting towards the end of the recording. So a very small file is recorded.
         raise Exception("Subject 4121 has its eeg file corrupted: Accidental overwriting of resting stage EEG file after computer prompted an overwriting towards the end of the recording. So a very small file is recorded.")
     if dataset['subject'] == '31212':   # incorrect event triggering after 311s

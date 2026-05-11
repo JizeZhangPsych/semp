@@ -1,3 +1,16 @@
+import copy
+
+import numpy as np
+import torch
+from torch.linalg import lstsq
+import mne
+from mne.io.pick import _picks_to_idx
+
+from semp.utils import log_or_print
+from .helpers import mne_epoch2raw
+
+
+@torch.no_grad()
 def epoch_sw_pca(dataset, userargs):
     epoch_key = userargs.get('epoch_key', 'tr_ep')
     npc = userargs.get('npc', 3)
@@ -86,6 +99,7 @@ def epoch_sw_pca(dataset, userargs):
 
     return dataset
 
+@torch.no_grad()
 def epoch_sw_pca_bievent(dataset, userargs):
     epoch_key = userargs.get('epoch_key', 'bcg_ep')
     npc = userargs.get('npc', 3)
@@ -160,6 +174,7 @@ def epoch_sw_pca_bievent(dataset, userargs):
 
     return dataset
 
+@torch.no_grad()
 def epoch_aas_bievent_mask(dataset, userargs):
     epoch_key = userargs.get('epoch_key', 'bcg_ep')
     window_length = userargs.get('window_length', 10)
@@ -229,6 +244,7 @@ def epoch_aas_bievent_mask(dataset, userargs):
 
     return dataset
 
+@torch.no_grad()
 def epoch_aas_bievent(dataset, userargs):
     epoch_key = userargs.get('epoch_key', 'bcg_ep')
     window_length = userargs.get('window_length', 10)
@@ -331,7 +347,7 @@ def impulse_removal(dataset, userargs):
             interp_data[ch, bad_idx] = np.interp(bad_idx, good_idx, data[ch, good_idx])
             bad_exist = True
 
-    dataset['raw']._data[pick_indices(dataset['raw'], picks)] = interp_data  # Update the raw data with the interpolated data
+    dataset['raw']._data[_picks_to_idx(dataset['raw'].info, picks)] = interp_data
     
     if not bad_exist or iteration == 1:
         return dataset
@@ -368,6 +384,7 @@ def epoch_impulse_removal(dataset, userargs):
 
 
 
+@torch.no_grad()
 def build_aecg(dataset, userargs):
     l_freq = userargs.get('l_freq', 1)
     h_freq = userargs.get('h_freq', 40)

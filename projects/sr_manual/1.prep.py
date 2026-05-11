@@ -1,14 +1,25 @@
 #%%
+"""Preprocessing batch for the Staresina resting EEG-fMRI dataset.
+
+NOTE on config order: ``manual_ica`` only *fits* the decomposition and
+writes the per-subject HTML review pages. It does NOT remove any ICs from
+``dataset['raw']`` --- the user's keep/del decisions don't exist yet during
+this batch. The ``interpolate_bads`` and ``set_eeg_reference`` stages that
+follow therefore operate on data that still contains every IC; that's
+intentional. The actual IC removal happens later in ``2.ica.py``, which
+reads ``ica/<subject>/label.txt`` + ``bads.txt``, applies them, and writes
+``<subject>_after_ica-raw.fif``.
+"""
 import numpy as np
 from osl_ephys.preprocessing import run_proc_chain, run_proc_batch
 from pathlib import Path
 from pathfinder import StaresinaRestPathfinder
 
-from semp.preprocessing import crop_TR, epoch_aas, epoch_obs, create_epoch, ckpt_report, slice_ica, init_tracer, summary, mid_crop, set_channel_type_raw, voltage_correction
+from semp.preprocessing import crop_TR, epoch_aas, epoch_obs, create_epoch, ckpt_report, init_tracer, summary, mid_crop, set_channel_type_raw, voltage_correction, manual_ica
 from helpers import initialize, set_channel_montage
 
 continue_interrupt = True
-target_pth = Path("/ohba/pi/mwoolrich/datasets/eeg-fmri_Staresina/after_prep_sr")
+target_pth = Path("/ohba/pi/mwoolrich/datasets/oxford/staresina/eeg_fmri/after_prep_sr_manual_debug")
 pf = StaresinaRestPathfinder()
 
 config = {
@@ -32,12 +43,7 @@ config = {
         {'bad_segments': {'segment_len': 500, 'picks': 'eeg', 'mode': 'diff', 'significance_level': 0.1, 'detect_zeros': False}},
         {'bad_channels': {'picks': 'eeg', 'significance_level': 0.1}},
         {'bad_segments': {'segment_len': 2500, 'picks': 'eog', 'detect_zeros': False}},
-        {'slice_ica': {}},
-        {'ckpt_report': {'ckpt_name': 'after_bads_trica', 'dB': False}},
-        {'ica_raw': {'n_components': 0.999, 'picks': 'eeg', 'l_freq': 1}},
-        {'ica_autoreject': {'eogmeasure':'correlation', 'eogthreshold' : 0.35, 
-                            'ecgmethod':'ctps', 'ecgthreshold': 0.1, 'apply': True}},
-        {'bad_channels': {'picks': 'eeg', 'significance_level': 0.1}},
+        {'manual_ica': {'n_components': 0.999, 'picks': 'eeg', 'l_freq': 1}},
         {'interpolate_bads': {}},
         {'ckpt_report': {'ckpt_name': 'after_ica', 'dB': False}},
         {'set_eeg_reference': {'projection': True}},
@@ -53,7 +59,7 @@ if continue_interrupt:
     file_list = []
     full_subject_list = subject_list.copy()
     subject_list = []
-    
+
     # Check if files already processed
     finished_list = target_pth.glob(f'*/*_preproc-raw.fif')
     finished_list = [full_string.parts[-2] for full_string in finished_list]
@@ -67,5 +73,5 @@ if continue_interrupt:
         else:
             file_list.append(preproc)
             subject_list.append(subject)
-    
-run_proc_batch(config, file_list, subjects=subject_list, outdir=str(target_pth), gen_report=False, overwrite=True, extra_funcs=[set_channel_montage, crop_TR, set_channel_type_raw, epoch_obs, create_epoch, ckpt_report, initialize, epoch_aas, voltage_correction, summary, init_tracer, mid_crop, slice_ica])
+
+run_proc_batch(config, file_list, subjects=subject_list, outdir=str(target_pth), gen_report=False, overwrite=True, extra_funcs=[set_channel_montage, crop_TR, set_channel_type_raw, epoch_obs, create_epoch, ckpt_report, initialize, epoch_aas, voltage_correction, summary, init_tracer, mid_crop, manual_ica])

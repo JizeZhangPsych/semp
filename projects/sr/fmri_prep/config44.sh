@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# config.sh
-# =========
-# Sourced by run_t1.sh and run_fmri.sh.
-# Edit here if paths or scanner parameters change.
+# config44.sh
+# ===========
+# Like config.sh but for hbaws44, which has fsl/6.0.7.9 (not 6.0.7.13).
+# Source this instead of config.sh when running on hbaws44.
 
 # ---------------------------------------------------------------------------
 # Data paths
 # ---------------------------------------------------------------------------
-DATA_ROOT="/ohba/pi/mwoolrich/jzhang/eeg-fmri"
-OUTPUT_ROOT="/ohba/pi/mwoolrich/jzhang/eeg-fmri/mr_prep"
+DATA_ROOT="/ohba/pi/mwoolrich/datasets/staresina/eeg_fmri"
+OUTPUT_ROOT="/ohba/pi/mwoolrich/datasets/staresina/eeg_fmri/mr_prep"
 
 # ---------------------------------------------------------------------------
 # Scanner parameters
@@ -18,7 +18,7 @@ DELTA_TE=2.46   # echo time difference (ms) for fsl_prepare_fieldmap
 # ---------------------------------------------------------------------------
 # Software modules
 # ---------------------------------------------------------------------------
-LMOD_INIT="/usr/share/lmod/lmod/init/bash"
-FSL_MODULE="fsl/6.0.7.13"
+LMOD_INIT=""           # not needed on hbaws44; module is already a shell function
+FSL_MODULE="fsl/6.0.7.9"
 FS_MODULE="freesurfer/7.4.1"
-FS_HOME="/cvmfs/software.fmrib.ox.ac.uk/neuro/el9/software/freesurfer/7.4.1"
+FS_HOME=""             # FreeSurfer not used by run_melodic.sh

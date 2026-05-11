@@ -33,7 +33,7 @@ set fmri(tr) @@TR@@
 set fmri(npts) @@NPTS@@
 
 # Delete volumes
-set fmri(ndelete) 0
+set fmri(ndelete) 5
 
 # Perfusion tag/control order
 set fmri(tagfirst) 1
