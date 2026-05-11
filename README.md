@@ -1,4 +1,4 @@
-# SEMP v2.0: Simultaneous EEG-fMRI Preprocessing Toolbox
+# SEMP: Simultaneous EEG-fMRI Preprocessing Toolbox
 
 Tools for analysing EEG acquired during simultaneous EEG-fMRI experiments.
 
