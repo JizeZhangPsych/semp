@@ -4,7 +4,7 @@ Tools for analysing EEG acquired during simultaneous EEG-fMRI experiments.
 
 This package is built on top of [osl-ephys](https://github.com/OHBA-analysis/osl-ephys) and provides EEG-fMRI specific preprocessing and analysis tools. The NIfTI mask + parcellation atlases used for source-space visualisation come from osl-ephys's bundled `source_recon/files/` directory, so installing osl-ephys is sufficient — no separate atlas download.
 
-The interactive manual-ICA review (browser-based per-IC inspection + label/bad-segment server) lives in the standalone [osl-manual-ica](https://github.com/) package; semp re-exports its `manual_ica` wrapper so existing configs keep working unchanged.
+The interactive manual-ICA review (browser-based per-IC inspection + label/bad-segment server) lives in the standalone [osl-manual-ica](https://github.com/JizeZhangPsych/osl-manual-ica) package; semp re-exports its `manual_ica` wrapper so existing configs keep working unchanged.
 
 ## Package Structure
 
@@ -101,7 +101,7 @@ Expected directory structure on disk:
 
 The manual pipeline is a three-stage hand-off between an automated batch and a
 human reviewer. The interactive parts (HTML review pages + the small label-saving
-HTTP server) live in the [osl-manual-ica](https://github.com/) package;
+HTTP server) live in the [osl-manual-ica](https://github.com/JizeZhangPsych/osl-manual-ica) package;
 `semp.preprocessing.manual_ica` is just a re-export of `osl_manual_ica.manual_ica`.
 
 1. **`1.prep.py`** — `run_proc_batch` fits the ICA and writes the per-subject
