@@ -20,7 +20,15 @@ HAS_OSLE = importlib.util.find_spec("osl_ephys") is not None
 # --- Always import subpackages (each handles its own missing deps internally) ---
 from semp import utils, preprocessing, source_recon, visualize
 
-__all__ = ["utils", "preprocessing", "source_recon", "visualize", "HAS_OSLE"]
+# Top-level shims around osl-ephys batch runners that auto-inject every semp
+# wrapper into extra_funcs (so configs can reference `crop_TR`, `epoch_aas`,
+# `manual_ica`, ... without a per-script import list).
+if HAS_OSLE:
+    from semp.preprocessing.batch import run_proc_batch, run_proc_chain
+    __all__ = ["utils", "preprocessing", "source_recon", "visualize", "HAS_OSLE",
+               "run_proc_batch", "run_proc_chain"]
+else:
+    __all__ = ["utils", "preprocessing", "source_recon", "visualize", "HAS_OSLE"]
 
 # --- Warn about missing environments ---
 if not HAS_OSLE:

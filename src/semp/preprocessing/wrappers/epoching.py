@@ -31,25 +31,56 @@ def crop_TR(dataset, userargs):
             raise ValueError(f"None of the provided event names {event_name} are found in the raw annotations {list(mne.events_from_annotations(dataset['raw'])[1].keys())}. Please check the event names or the raw annotations.")
 
     def crop_eeg_to_tr(eeg, tmin, num_edge_TR=0):
-        trig = mne.events_from_annotations(eeg)[1][str(event_name)]
+        events_arr, ev_id = mne.events_from_annotations(eeg)
+        trig = ev_id[str(event_name)]
 
-        start_point = end_point = -1
-        for timepoint, _, trig_value in mne.events_from_annotations(eeg)[0]:
-            if trig_value == trig:
-                if start_point == -1:
-                    start_point = timepoint - eeg.first_samp
-                end_point = timepoint+TR*freq - eeg.first_samp
+        # Collect every TR trigger's onset (samples, recording-relative).
+        tr_samples = [tp - eeg.first_samp for tp, _, tv in events_arr if tv == trig]
+        if not tr_samples:
+            raise ValueError(f"No TR events ({event_name}) found in raw annotations.")
 
-        new_tmin = max(start_point/freq+tmin+num_edge_TR*TR, 0)
-        tmax = end_point/freq-num_edge_TR*TR
-        try:
-            new_tmin = max(new_tmin, eeg.tmin)
-            tmax = min(tmax, eeg.tmax)
-        except AttributeError as e:
-            if 'object has no attribute' in str(e):
-                log_or_print(f"Warning: {e}")
-            else:
-                raise e
+        n_samples = eeg.n_times  # recording length in samples
+        tr_in_samples = TR * freq
+
+        # Drop TR onsets that fall outside the recording window:
+        #   * onset < 0                       -> annotation lies before data start
+        #     (e.g. trigger from a prior segment carried over, or first_samp drift)
+        #   * onset + TR*sfreq > n_samples    -> [onset, onset + TR) overruns end
+        #     (last TR truncated, TR value wrong, or stray late annotation)
+        n_under = sum(1 for s in tr_samples if s < 0)
+        n_over = sum(1 for s in tr_samples if s + tr_in_samples > n_samples)
+        kept = [s for s in tr_samples if 0 <= s and s + tr_in_samples <= n_samples]
+        n_dropped = len(tr_samples) - len(kept)
+        if n_dropped:
+            log_or_print(
+                f"Warning: dropped {n_dropped}/{len(tr_samples)} TR event(s) "
+                f"({n_under} before data start, {n_over} past end-of-recording "
+                f"[{n_samples / freq:.3f}s] with TR={TR}s). "
+                f"Possible causes: last TR truncated, TR value wrong, stray "
+                f"annotation outside data window, or first_samp drift."
+            )
+            # Strip the offending annotations so downstream stages don't see them.
+            def _is_outside(onset_s, desc):
+                if str(desc) != str(event_name):
+                    return False
+                s = (onset_s - eeg.first_time) * freq
+                return s < 0 or s + tr_in_samples > n_samples
+
+            keep_mask = [
+                not _is_outside(o, d)
+                for o, d in zip(eeg.annotations.onset, eeg.annotations.description)
+            ]
+            eeg.set_annotations(eeg.annotations[keep_mask])
+            if not kept:
+                raise ValueError(
+                    "All TR events fell outside the data window; nothing left to crop to."
+                )
+
+        start_point = kept[0]
+        end_point = kept[-1] + tr_in_samples
+
+        new_tmin = max(start_point / freq + tmin + num_edge_TR * TR, 0.0)
+        tmax = min(end_point / freq - num_edge_TR * TR, eeg.times[-1])
         eeg = eeg.crop(tmin=new_tmin, tmax=tmax, include_tmax=False)
         return eeg
 

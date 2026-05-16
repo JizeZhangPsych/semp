@@ -14,7 +14,11 @@ requires-python = ">=3.8"
 # re-exports its ``manual_ica`` so existing semp configs keep working
 # after the extraction.
 dependencies = [
-    "numpy",
+    # numba (pulled in transitively via osl-ephys' source_recon -> rhino ->
+    # numba) rejects NumPy >= 2.3 at import time ("Numba needs NumPy 2.2 or
+    # less"). A fresh `pip install` of semp otherwise lands NumPy 2.4 and
+    # `import osl_ephys` crashes before anything runs. Cap it here.
+    "numpy<2.3",
     "scipy",
     "pandas",
     "torch",

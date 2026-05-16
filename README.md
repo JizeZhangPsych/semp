@@ -24,29 +24,43 @@ semp/
 
 ## Installation
 
-### Step 1 — Install osl-ephys
+semp sits **on top of** an osl-ephys conda environment. That environment is
+built from osl-ephys's own fully-pinned env file, and semp must not perturb
+it — pip would otherwise pull a newer `numpy` / `scipy` / `mne` and break
+osl-ephys's numba / source-recon stack. The install therefore snapshots the
+osl-ephys env and installs semp *under that constraint set*.
+
+### Step 1 — Create the osl-ephys environment
 
 Follow the installation instructions on the [osl-ephys GitHub page](https://github.com/OHBA-analysis/osl-ephys) to set up a conda environment with osl-ephys.
 
-### Step 2 — Install osl-manual-ica
-
-semp depends on osl-manual-ica for the interactive ICA-review wrapper. If it
-is not yet on PyPI in your environment, install the local checkout in editable
-mode first:
-
 ```bash
-pip install -e /path/to/osl-manual-ica
+conda activate osle      # 'osle' is the env name of osl-ephys
 ```
 
-`pip install semp` will pull it automatically once osl-manual-ica is published.
+### Step 2 — Install semp + osl-manual-ica
 
-### Step 3 — Install semp
-
-Inside the osl-ephys conda environment, run:
+From the activated `osle` env, run the bundled installer:
 
 ```bash
-pip install -e /path/to/semp
+./install.sh [/path/to/osl-manual-ica]
 ```
+
+`install.sh` does the version-safe install:
+
+1. `pip freeze` the live env into a temporary **constraints file** — a
+   snapshot of every package osl-ephys provided.
+2. `pip install -c <constraints> -e osl-manual-ica` then `-e semp`.
+
+A pip constraints file pins versions but installs nothing by itself, so
+every osl-ephys-provided package is left **exactly as-is** (no upgrade, no
+downgrade) while semp's genuinely-extra dependencies still install normally.
+This is deliberately *not* done by editing osl-ephys's `hbaws.yml` or by
+hard-coding an exclude list: the snapshot is taken from the **live env at
+install time**, so it keeps working when osl-ephys updates its pin set.
+
+The osl-manual-ica path defaults to `../osl-manual-ica` relative to the semp
+checkout; pass it explicitly if your checkout lives elsewhere.
 
 After installation, verify with:
 ```python
@@ -55,6 +69,16 @@ import semp
 import osl_manual_ica
 # manual ICA review wrapper available
 ```
+
+> **Manual install** (if you'd rather not use the script): activate the
+> `osle` env, then
+> ```bash
+> pip list --format=freeze --exclude-editable > /tmp/osle-lock.txt
+> pip install -c /tmp/osle-lock.txt -e /path/to/osl-manual-ica
+> pip install -c /tmp/osle-lock.txt -e /path/to/semp
+> ```
+> (`pip list --format=freeze`, not `pip freeze` — the latter emits broken
+> `@ file://` URLs for conda packages.)
 
 > **Note:** The brain-surface and connectome plots in
 > `semp.utils.parcel_plot` need a few NIfTI files (MNI brain mask +
